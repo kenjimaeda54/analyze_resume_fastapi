@@ -10,8 +10,8 @@ class CandidateTable(Base):
 
 
      id = Column(Integer, primary_key=True,index=True)
-     cpf = Column(String(15),unique=True, nullable=False)
-     resume_path = Column(String(15),nullable=False)
+     cpf = Column(String(11),unique=True, nullable=False)
+     resume_path = Column(String(255),nullable=False)
      vacancy_id = Column(Integer,nullable=True)
      score = Column(Float,nullable=False)
      status = Column(SAEnum(CandidateStatus), default=CandidateStatus.PENDING)

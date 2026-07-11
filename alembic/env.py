@@ -5,9 +5,12 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy import pool
 from app.infrastructure.database.database import Base
+from app.infrastructure.database.models.candidate_table import CandidateTable
 
 from alembic import context
 
+
+#lembran que precisa importar as tabelas aqui mesmo sem usar
 ##primerio precisa rodar alembic init alembi
 ##depois alterar o Base metadata para o Base do projeto
 ##depois criar tabela alembic revision --autogenerate -m "nome da tabela"
