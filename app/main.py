@@ -1,19 +1,19 @@
-from starlette import status
-from fastapi import FastAPI
+from fastapi import FastAPI, status
+from fastapi.exceptions import RequestValidationError
 import uvicorn
 
 from app.adapters.controllers import candidate_controller
-from app.domain.exception.candidate_exception import CandidateAlreadyExistsException
-from app.infrastructure.exceptions.candidate_already_exception import candidate_already_exists_exception
+from app.domain.exception.candidate_exceptions import CandidateAlreadyExistsException
+from app.adapters.handlers.candidate_exception_handler import candidate_already_exists_exception
 
 app = FastAPI()
 
 
-@app.get("/healthy",status_code=status.HTTP_200_OK)
+@app.get("/healthy", status_code=status.HTTP_200_OK)
 async def healthy():
     return {"status": "200"}
 
-app.add_exception_handler(CandidateAlreadyExistsException,candidate_already_exists_exception)
+app.add_exception_handler(CandidateAlreadyExistsException, candidate_already_exists_exception)
 app.include_router(candidate_controller.router)
 
 

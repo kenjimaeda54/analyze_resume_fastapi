@@ -1,5 +1,5 @@
 from app.domain.entities.candidate import Candidate
-from app.domain.exception.common import ConflictError, NotFoundError
+from app.domain.exception.base import ConflictError, NotFoundError
 
 
 class CandidateAlreadyExistsException(ConflictError):

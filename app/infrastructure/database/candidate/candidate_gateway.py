@@ -1,11 +1,11 @@
-from sqlite3 import IntegrityError
+from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy.orm import Session
 
 from app.application.ports.candidate_gateway import CandidateGatewayInterface
 from app.domain.entities.candidate import Candidate
-from app.domain.exception.candidate_exception import CandidateAlreadyExistsException
-from app.infrastructure.database.models.candidate_table import CandidateTable
+from app.domain.exception.candidate_exceptions import CandidateAlreadyExistsException
+from app.infrastructure.database.models.candidate_model import CandidateTable
 
 
 class CandidateDatabaseGateway(CandidateGatewayInterface):
