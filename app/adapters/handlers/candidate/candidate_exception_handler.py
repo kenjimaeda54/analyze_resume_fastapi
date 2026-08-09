@@ -3,7 +3,7 @@ from starlette.requests import Request
 
 from starlette import status
 
-from app.domain.exception.candidate.candidate_exceptions import CandidateAlreadyExistsException
+from app.domain.exception.candidate.candidate__already_exists_exceptions import CandidateAlreadyExistsException
 from app.domain.exception.base import ErrorResponse
 from fastapi.responses import JSONResponse
 

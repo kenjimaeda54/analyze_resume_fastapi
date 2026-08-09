@@ -11,5 +11,5 @@ class CandidateGatewayInterface(ABC):
         pass
 
     @abstractmethod
-    def get_candidate(self, cpf: str) -> Optional[Candidate]:
+    def get_candidate(self, cpf: str,email: str) -> Optional[Candidate]:
         pass

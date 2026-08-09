@@ -1,9 +1,12 @@
+from sqlite3 import IntegrityError
+
 from sqlalchemy import select, Sequence
 from sqlalchemy.orm import Session
 
 from app.adapters.mapper.application_mapper import ApplicationMapper
 from app.application.ports.application_gateway import ApplicationGatewayInterface
 from app.domain.entities.application import Application
+from app.domain.exception.application.application_already_exists_exception import ApplicationAlreadyExistsException
 from app.infrastructure.database.models.application_table import ApplicationTable
 from app.infrastructure.database.models.vacancy_table import VacancyTable
 
@@ -46,6 +49,11 @@ class ApplicationGatewayImplementation(ApplicationGatewayInterface):
 
             return ApplicationMapper.to_table_from_domain(application_table)
 
+        except IntegrityError as e:
+            self.db_session.rollback()
+            raise ApplicationAlreadyExistsException()
+
+
         except Exception as e:
             self.db_session.rollback()
-            raise e
+            raise  ApplicationAlreadyExistsException()

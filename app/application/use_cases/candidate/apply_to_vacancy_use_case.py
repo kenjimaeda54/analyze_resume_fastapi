@@ -17,7 +17,7 @@ class ApplyToVacancyUseCase:
 
 
     def execute(self, candidate: Candidate, public_id: str) -> Application:
-         candidate_intern = self.candidate_gateway.get_candidate(cpf=candidate.cpf)
+         candidate_intern = self.candidate_gateway.get_candidate(cpf=candidate.cpf,email=candidate.email)
          vacancy = self.vacancy_gateway.get_by_vacancy_public_id(public_id)
 
          if vacancy is None:
