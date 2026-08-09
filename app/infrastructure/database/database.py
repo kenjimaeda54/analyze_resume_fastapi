@@ -4,7 +4,7 @@ from typing import Annotated
 from dotenv import load_dotenv
 from fastapi import Depends
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
+from sqlalchemy.orm import sessionmaker, declarative_base, Session, DeclarativeBase
 
 load_dotenv()
 
@@ -15,9 +15,15 @@ database_user_name = os.getenv("DB_USER_NAME")
 DATABASE_URL = f"postgresql://{database_user_name}:{database_password}@localhost/{database_name}"
 
 engine = create_engine(DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(
+    autocommit=False,
+    class_=Session,
+    autoflush=False,
+    bind=engine)
 
-Base = declarative_base()
+class Base(DeclarativeBase):
+    pass
+
 
 def get_database():
     db = SessionLocal()

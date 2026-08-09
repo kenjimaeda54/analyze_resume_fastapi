@@ -4,8 +4,9 @@ from app.domain.enum.candidate_status import CandidateStatus
 
 
 class Candidate(BaseModel):
+    public_id: str | None = None
+    id: int | None = None
     cpf: str
     resume_path: str
-    vacancy_id: int
-    score: float | None = None
-    status: CandidateStatus = CandidateStatus.PENDING
+    name: str
+    email: str

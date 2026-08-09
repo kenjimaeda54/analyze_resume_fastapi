@@ -6,8 +6,17 @@ from sqlalchemy import create_engine
 from sqlalchemy import pool
 from app.infrastructure.database.database import Base
 from app.infrastructure.database.models.candidate_table import CandidateTable
+from app.infrastructure.database.models.vacancy_table import VacancyTable
+from app.infrastructure.database.models.application_table import  ApplicationTable
 
 from alembic import context
+
+
+#para comparar ou pegar mensagens de erro do alembic nas migrações roda os seguintes comndaos
+#alembic current
+#alembic heads
+#lembrnado que precisa eta no ambiente virtual uv run por exemplo no meu caso que uso o uv
+#da para identificar se uma migration falhou sej
 
 
 #lembran que precisa importar as tabelas aqui mesmo sem usar

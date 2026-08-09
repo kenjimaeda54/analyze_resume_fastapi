@@ -1,7 +1,5 @@
-from os import error
-
 from fastapi import APIRouter, UploadFile, File, Form
-from fastapi.params import Depends
+from fastapi.params import Depends, Path
 from starlette import status
 from typing import Annotated
 
@@ -9,32 +7,43 @@ from pydantic import ValidationError
 
 from app.adapters.mapper.candidate_mapper import CandidateMapper
 from app.application.dto.request.create_candidate import CreateCandidate
-from app.application.use_cases.candidate.create_candidate import CreateCandidateUseCase
-from app.infrastructure.database.candidate.candidate_gateway import CandidateDatabaseGateway
+from app.application.dto.response.application_response_dto import ApplicationResponseDTO
+from app.application.ports.application_gateway import ApplicationGatewayInterface
+from app.application.use_cases.candidate import apply_to_vacancy_use_case
+from app.application.use_cases.candidate.apply_to_vacancy_use_case import ApplyToVacancyUseCase
+from app.infrastructure.database.gateway.application_gateway_implementation import ApplicationGatewayImplementation
+from app.infrastructure.database.gateway.candidate_gateway_implementation import CandidateGatewayImplementation
 from app.infrastructure.database.database import depends_db
 from app.domain.exception.base import ErrorResponse
 from app.adapters.messages.field_messages import build_field_error
 from fastapi.responses import JSONResponse
 
+from app.infrastructure.database.gateway.vacancy_gateway_implementation import VacancyGatewayImplementation
 
 router = APIRouter(
     prefix="/candidate",
     tags=["Candidate"]
 )
 
-def candidate_use_case_gateway(db: depends_db):
-    candidate_gateway_db = CandidateDatabaseGateway(db)
-    return CreateCandidateUseCase(candidate_gateway_db)
+def apply_candidate_use_case_gateway(db: depends_db):
+    candidate_gateway = CandidateGatewayImplementation(db)
+    application_gateway = ApplicationGatewayImplementation(db)
+    vacancy_gateway = VacancyGatewayImplementation(db)
+    return ApplyToVacancyUseCase(candidate_gateway=candidate_gateway, application_gateway=application_gateway, vacancy_gateway=vacancy_gateway)
 
-@router.post("/", status_code=status.HTTP_201_CREATED)
-async def create_candidate(
+#estamos enviando via form porque não aceita  no fastapi misturar json com File
+#enviamos o resume que e um UploadFile
+@router.post("/{vacancy_id}/apply", status_code=status.HTTP_201_CREATED)
+async def apply_candidate_vacancy(
     cpf: Annotated[str, Form()],
+    name: Annotated[str, Form()],
     resume: Annotated[UploadFile, File()],
-    vacancy_id: Annotated[int, Form()],
-    create_candidate_use_case: Annotated[CreateCandidateUseCase, Depends(candidate_use_case_gateway)]
+    email: Annotated[str, Form()],
+    vacancy_id:    Annotated[str,Path()],
+    apply_vacancy_use_case: Annotated[ApplyToVacancyUseCase, Depends(apply_candidate_use_case_gateway)]
 ):
     try:
-        dto = CreateCandidate(cpf=cpf, vacancy_id=vacancy_id)
+        dto = CreateCandidate(cpf=cpf, name=name,email=email)
     except ValidationError as exception:
         fields = [build_field_error(err) for err in exception.errors()]
         error_response = ErrorResponse(
@@ -48,6 +57,12 @@ async def create_candidate(
             content=error_response.model_dump(exclude_none=True),
         )
 
-    candidate = CandidateMapper.to_domain(dto, resume_filename=resume.filename or "")
-    create_candidate_use_case(candidate)
-    return None
+    candidate = CandidateMapper.request_to_domain(dto, resume_filename=resume.filename or "")
+    application = apply_vacancy_use_case(candidate=candidate, vacancy_id=vacancy_id)
+
+    assert application.public_id is not None, "Application with publicId does not exist"
+
+    return ApplicationResponseDTO(
+       public_id=application.public_id,
+        status=application.status,
+    )
