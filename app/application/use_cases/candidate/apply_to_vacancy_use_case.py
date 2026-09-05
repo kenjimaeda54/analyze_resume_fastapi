@@ -3,7 +3,9 @@ from app.application.ports.candidate_gateway import CandidateGatewayInterface
 from app.application.ports.storage_r2_gateway import StorageR2GatewayInterface
 from app.application.ports.vacancy_gateway import VacancyGatewayInterface
 from app.domain.exception.candidate.candidate_conflict import CandidateConflictException
-from app.infrastructure.storage.validators.validate_resume_extension import validate_resume_extension
+from app.domain.exception.candidate.candidate_cpf_exception import CandidateCpfException
+from app.infrastructure.storage.validators.candidate.validate_cpf import validate_cpf
+from app.infrastructure.storage.validators.candidate.validate_resume_extension import validate_resume_extension
 from app.domain.entities.application import Application
 from app.domain.entities.candidate import Candidate
 from app.domain.exception.vacancy.vancacy_not_found import VacancyNotFound
@@ -20,11 +22,13 @@ class ApplyToVacancyUseCase:
         self.vacancy_gateway = vacancy_gateway
         self.storager2 = storager2
 
-
-
-    #precisa lançar mensagem de erro se a pessoa tennta usar mesmo cpf com email dfierente e vice versa
     def execute(self, candidate: Candidate, public_id: str,resume_bytes: bytes,resume_content: str | None) -> Application:
          extension = validate_resume_extension(resume_bytes=resume_bytes,content_type=resume_content )
+         is_cpf_valid = validate_cpf(candidate.cpf)
+
+         if  not is_cpf_valid:
+             raise CandidateCpfException()
+
 
          candidate_intern = self.candidate_gateway.get_candidate(cpf=candidate.cpf,email=candidate.email)
          vacancy = self.vacancy_gateway.get_by_vacancy_public_id(public_id)

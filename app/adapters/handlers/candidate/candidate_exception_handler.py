@@ -8,6 +8,7 @@ from app.domain.exception.base import ErrorResponse
 from fastapi.responses import JSONResponse
 
 from app.domain.exception.candidate.candidate_conflict import CandidateConflictException
+from app.domain.exception.candidate.candidate_cpf_exception import CandidateCpfException
 from app.domain.exception.candidate.candidate_not_found import CandidateNotFound
 
 
@@ -47,4 +48,16 @@ async def candidate_not_found_exception(request: Request, exception: Exception) 
     return JSONResponse(
         status_code=error_response.http_status_code,
         content=error_response.model_dump(exclude_none=True),
+    )
+
+async def candidate_cpf_exception(request: Request, exception: Exception) -> JSONResponse:
+    candidate_exception = cast(CandidateCpfException, exception)
+    error_response = ErrorResponse(
+        http_status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        error_code=candidate_exception.error_code,
+        message=str(exception)
+    )
+    return JSONResponse(
+        status_code=error_response.http_status_code,
+        content=error_response.model_dump(exclude_none=True)
     )
