@@ -42,6 +42,7 @@ class ApplicationGatewayImplementation(ApplicationGatewayInterface):
                 vacancy_id=application.vacancy_id,
                 score=application.score,
                 status=application.status,
+                resume_url=application.resume_url
             )
             self.db_session.add(application_table)
             self.db_session.commit()

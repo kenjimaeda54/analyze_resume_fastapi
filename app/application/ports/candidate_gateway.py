@@ -13,3 +13,7 @@ class CandidateGatewayInterface(ABC):
     @abstractmethod
     def get_candidate(self, cpf: str,email: str) -> Optional[Candidate]:
         pass
+
+    @abstractmethod
+    def update_resume_url(self,resume_url: str,candidate_cpf: str):
+        pass

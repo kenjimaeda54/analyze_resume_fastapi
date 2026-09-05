@@ -8,8 +8,6 @@ from pydantic import ValidationError
 from app.adapters.mapper.candidate_mapper import CandidateMapper
 from app.application.dto.request.create_candidate import CreateCandidate
 from app.application.dto.response.application_response_dto import ApplicationResponseDTO
-from app.application.ports.application_gateway import ApplicationGatewayInterface
-from app.application.use_cases.candidate import apply_to_vacancy_use_case
 from app.application.use_cases.candidate.apply_to_vacancy_use_case import ApplyToVacancyUseCase
 from app.infrastructure.database.gateway.application_gateway_implementation import ApplicationGatewayImplementation
 from app.infrastructure.database.gateway.candidate_gateway_implementation import CandidateGatewayImplementation
@@ -19,17 +17,22 @@ from app.adapters.messages.field_messages import build_field_error
 from fastapi.responses import JSONResponse
 
 from app.infrastructure.database.gateway.vacancy_gateway_implementation import VacancyGatewayImplementation
+from app.infrastructure.storage.storage import depends_storage
 
 router = APIRouter(
     prefix="/candidate",
     tags=["Candidate"]
 )
 
-def apply_candidate_use_case_gateway(db: depends_db):
+def apply_candidate_use_case_gateway(db: depends_db,storage: depends_storage):
     candidate_gateway = CandidateGatewayImplementation(db)
     application_gateway = ApplicationGatewayImplementation(db)
     vacancy_gateway = VacancyGatewayImplementation(db)
-    return ApplyToVacancyUseCase(candidate_gateway=candidate_gateway, application_gateway=application_gateway, vacancy_gateway=vacancy_gateway)
+    return ApplyToVacancyUseCase(candidate_gateway=candidate_gateway,
+                                 application_gateway=application_gateway,
+                                 vacancy_gateway=vacancy_gateway,
+                                 storager2= storage,
+                                 )
 
 #estamos enviando via form porque não aceita  no fastapi misturar json com File
 #enviamos o resume que e um UploadFile
@@ -57,8 +60,15 @@ async def apply_candidate_vacancy(
             content=error_response.model_dump(exclude_none=True),
         )
 
-    candidate = CandidateMapper.request_to_domain(dto, resume_filename=resume.filename or "")
-    application = apply_vacancy_use_case(candidate=candidate, vacancy_id=vacancy_id)
+    candidate = CandidateMapper.request_to_domain(dto)
+    resume_bytes = await resume.read()
+    resume_content_type =   resume.content_type
+
+
+    #    apply_vacancy_use_case: Annotated[ApplyToVacancyUseCase, Depends(apply_candidate_use_case_gateway)]
+    #    isso e injeção dependencia porque precisava do db e não possuo no codigo ja o resume_bytes possuo, entao
+    #    posso jogar direto no execute, sem isso precisaria implementar as interfaces e a implemetnaçao na mao do db
+    application = apply_vacancy_use_case(candidate=candidate, vacancy_id=vacancy_id,resume_bytes=resume_bytes,resume_content = resume_content_type)
 
     assert application.public_id is not None, "Application with publicId does not exist"
 

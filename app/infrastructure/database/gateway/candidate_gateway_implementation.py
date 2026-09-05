@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session
 from app.adapters.mapper.candidate_mapper import CandidateMapper
 from app.application.ports.candidate_gateway import CandidateGatewayInterface
 from app.domain.entities.candidate import Candidate
-from app.domain.exception.candidate.candidate__already_exists_exceptions import CandidateAlreadyExistsException
 from app.domain.exception.candidate.candidate_not_found import CandidateNotFound
 from app.infrastructure.database.exceptions.candidate_exception_mapper import map_candidate_integrity_error
 from app.infrastructure.database.models.candidate_table import CandidateTable
@@ -22,7 +21,7 @@ class CandidateGatewayImplementation(CandidateGatewayInterface):
     def create_candidate(self, candidate: Candidate) -> Candidate:
         candidate_table = CandidateTable(
             cpf=candidate.cpf,
-            resume_path=candidate.resume_path,
+            resume_url=candidate.resume_url,
             name=candidate.name,
             email=candidate.email,
         )
@@ -36,7 +35,6 @@ class CandidateGatewayImplementation(CandidateGatewayInterface):
             self.db.rollback()
             raise  map_candidate_integrity_error(
                 error=e,
-                candidate=candidate,
             )
         except Exception as e:
             self.db.rollback()
@@ -69,6 +67,23 @@ class CandidateGatewayImplementation(CandidateGatewayInterface):
 
             db_candidate.deleted_at = datetime.now()
 
+            self.db.commit()
+            self.db.refresh(db_candidate)
+
+        except Exception as e:
+            raise e
+
+
+
+    def update_resume_url(self,resume_url: str,candidate_cpf: str):
+        try:
+            statement = select(CandidateTable).where(CandidateTable.cpf == candidate_cpf)
+            db_candidate: Optional[CandidateTable] = self.db.execute(statement).scalar_one_or_none()
+
+            if db_candidate is None:
+                raise CandidateNotFound(cpf=candidate_cpf)
+
+            db_candidate.resume_url = resume_url
             self.db.commit()
             self.db.refresh(db_candidate)
 

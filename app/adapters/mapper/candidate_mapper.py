@@ -5,12 +5,12 @@ from app.infrastructure.database.models.candidate_table import CandidateTable
 
 class CandidateMapper:
     @staticmethod
-    def request_to_domain(dto: CreateCandidate, resume_filename: str = "") -> Candidate:
+    def request_to_domain(dto: CreateCandidate) -> Candidate:
         # TODO: salvar arquivo resume em disco e passar o path real
         return Candidate(
             cpf=dto.cpf,
             name=dto.name,
-            resume_path=resume_filename,
+            resume_url="",
             email = dto.email,
         )
 
@@ -21,6 +21,6 @@ class CandidateMapper:
             public_id=str(table.public_id),
             cpf=table.cpf,
             name=table.name,
-            resume_path=table.resume_path,
+            resume_url=table.resume_url,
             email=table.email,
         )

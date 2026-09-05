@@ -19,7 +19,7 @@ class CandidateTable(Base):
         nullable=False
     )
     cpf: Mapped[str] = mapped_column(String, index=True,unique=True,nullable=False)
-    resume_path: Mapped[str] = mapped_column(String(255), nullable=False)
+    resume_url: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime,  nullable=True,default=None)

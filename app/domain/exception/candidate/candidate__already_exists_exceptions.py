@@ -1,8 +1,7 @@
-from app.domain.entities.candidate import Candidate
-from app.domain.exception.base import ConflictError, NotFoundError
+from app.domain.exception.base import GeneralError, NotFoundError
 
 
-class CandidateAlreadyExistsException(ConflictError):
+class CandidateAlreadyExistsException(GeneralError):
     def __init__(self, field: str = "cpf"):
         super().__init__(
             message=f"Candidate  with  {field} already.",

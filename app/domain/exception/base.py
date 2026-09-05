@@ -14,12 +14,18 @@ class ErrorResponse(BaseModel):
     fields: Optional[list[FieldErrors]] = None
 
 
-class ConflictError(Exception):
+class GeneralError(Exception):
     def __init__(self, message: str,error_code: str):
         super().__init__(message)
         self.error_code = error_code
 
 class NotFoundError(Exception):
     def __init__(self, message: str,error_code: str):
+        super().__init__(message)
+        self.error_code = error_code
+
+
+class ResumeUrlError(Exception):
+    def __init__(self,message: str, error_code: str):
         super().__init__(message)
         self.error_code = error_code

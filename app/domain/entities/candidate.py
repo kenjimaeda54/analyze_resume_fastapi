@@ -7,6 +7,6 @@ class Candidate(BaseModel):
     public_id: str | None = None
     id: int | None = None
     cpf: str
-    resume_path: str
+    resume_url: str
     name: str
     email: str

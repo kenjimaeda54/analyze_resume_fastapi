@@ -1,4 +1,4 @@
-from app.domain.exception.base import ConflictError, NotFoundError
+from app.domain.exception.base import GeneralError, NotFoundError
 
 
 class CandidateNotFound(NotFoundError):

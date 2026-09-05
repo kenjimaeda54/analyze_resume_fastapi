@@ -7,6 +7,7 @@ from app.domain.exception.candidate.candidate__already_exists_exceptions import 
 from app.domain.exception.base import ErrorResponse
 from fastapi.responses import JSONResponse
 
+from app.domain.exception.candidate.candidate_conflict import CandidateConflictException
 from app.domain.exception.candidate.candidate_not_found import CandidateNotFound
 
 
@@ -20,6 +21,19 @@ async def candidate_already_exists_exception(request: Request, exception: Except
     return JSONResponse(
         status_code=error_response.http_status_code,
         content=error_response.model_dump(exclude_none=True),
+    )
+
+
+async def candidate_conflict(request: Request, exception: Exception):
+    candidate_exception = cast(CandidateConflictException, exception)
+    error_response = ErrorResponse(
+        http_status_code=status.HTTP_409_CONFLICT,
+        error_code=candidate_exception.error_code,
+        message=str(exception)
+    )
+    return JSONResponse(
+        status_code=error_response.http_status_code,
+        content=error_response.model_dump(exclude_none=True)
     )
 
 
