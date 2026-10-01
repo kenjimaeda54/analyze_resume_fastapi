@@ -2,13 +2,14 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import select, or_
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, MultipleResultsFound
 
 from sqlalchemy.orm import Session
 
 from app.adapters.mapper.candidate_mapper import CandidateMapper
 from app.application.ports.candidate_gateway import CandidateGatewayInterface
 from app.domain.entities.candidate import Candidate
+from app.domain.exception.candidate.candidate_conflict import CandidateConflictException
 from app.domain.exception.candidate.candidate_not_found import CandidateNotFound
 from app.infrastructure.database.exceptions.candidate_exception_mapper import map_candidate_integrity_error
 from app.infrastructure.database.models.candidate_table import CandidateTable
@@ -29,7 +30,6 @@ class CandidateGatewayImplementation(CandidateGatewayInterface):
             self.db.add(candidate_table)
             self.db.commit()
             self.db.refresh(candidate_table)
-            #automaticamente o candidate_table e atribuido o id
             return  CandidateMapper.to_domain_from_table(candidate_table)
         except IntegrityError as e:
             self.db.rollback()
@@ -47,6 +47,8 @@ class CandidateGatewayImplementation(CandidateGatewayInterface):
                     CandidateTable.cpf == cpf,
                     CandidateTable.email == email,
                 )
+                and
+                CandidateTable.deleted_at.is_(None)
             )
             db_candidate: Optional[CandidateTable] = self.db.execute(statement).scalar_one_or_none()
 
@@ -54,8 +56,8 @@ class CandidateGatewayImplementation(CandidateGatewayInterface):
                 return None
 
             return CandidateMapper.to_domain_from_table(db_candidate)
-        except:
-            raise CandidateNotFound(cpf=cpf)
+        except MultipleResultsFound as _:
+            raise CandidateConflictException()
 
     def delete_candidate(self, cpf: str):
         try:

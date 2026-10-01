@@ -1,4 +1,6 @@
-from sqlite3 import IntegrityError
+from typing import Optional
+
+from sqlalchemy.exc import IntegrityError
 
 from sqlalchemy import select, Sequence
 from sqlalchemy.orm import Session
@@ -23,7 +25,7 @@ class ApplicationGatewayImplementation(ApplicationGatewayInterface):
         # e a partir dessa combinação temporária, consigo filtrar usando colunas de qualquer uma
         # das duas tabelas.
         statement = (select(ApplicationTable)
-                     .join(VacancyTable, ApplicationTable.vacancy_id == vacancy_id)
+                     .join(VacancyTable, ApplicationTable.vacancy_id == VacancyTable.id)
                      .where(ApplicationTable.candidate_id == candidate_id,
                                                    VacancyTable.delete_at.is_(None)))
         application_db: Sequence[ApplicationTable] = self.db_session.execute(statement).scalars().all()
@@ -58,3 +60,14 @@ class ApplicationGatewayImplementation(ApplicationGatewayInterface):
         except Exception as e:
             self.db_session.rollback()
             raise  ApplicationAlreadyExistsException()
+
+    def find_by_candidate_and_vacancy(self, candidate_id: int, vacancy_id: int) -> Optional[Application]:
+        statement = (select(ApplicationTable)
+                     .where(ApplicationTable.candidate_id == candidate_id,
+                            ApplicationTable.vacancy_id == vacancy_id))
+        application_db: Optional[ApplicationTable] = self.db_session.execute(statement).scalar_one_or_none()
+
+        if application_db is None:
+            return None
+
+        return ApplicationMapper.to_table_from_domain(application_db)

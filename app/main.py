@@ -6,11 +6,12 @@ from app.adapters.handlers.application.application_exception_handler import appl
 from app.adapters.handlers.resume.resume_exception_handler import resume_exception_extension_handler
 from app.adapters.handlers.vacancy.vacancy_exception_handler import vacancy_not_found_exception
 from app.domain.exception.application.application_already_exists_exception import ApplicationAlreadyExistsException
-from app.domain.exception.candidate.candidate__already_exists_exceptions import CandidateAlreadyExistsException
+from app.domain.exception.candidate.candidate_already_exists_exceptions import CandidateAlreadyExistsException
 from app.adapters.handlers.candidate.candidate_exception_handler import candidate_already_exists_exception, \
-    candidate_not_found_exception, candidate_conflict, candidate_cpf_exception
+    candidate_not_found_exception, candidate_conflict, candidate_cpf_exception, candidate_exception
 from app.domain.exception.candidate.candidate_conflict import CandidateConflictException
 from app.domain.exception.candidate.candidate_cpf_exception import CandidateCpfException
+from app.domain.exception.candidate.candidate_exception import CandidateException
 from app.domain.exception.candidate.candidate_not_found import CandidateNotFound
 from app.domain.exception.resume.resume_exception_extension_handler import ResumeInvalidExtensionException
 from app.domain.exception.vacancy.vancacy_not_found import VacancyNotFound
@@ -23,6 +24,7 @@ async def healthy():
     return {"status": "200"}
 
 app.add_exception_handler(CandidateCpfException,candidate_cpf_exception)
+app.add_exception_handler(CandidateException, candidate_exception)
 app.add_exception_handler(CandidateConflictException,candidate_conflict)
 app.add_exception_handler(CandidateAlreadyExistsException, candidate_already_exists_exception)
 app.add_exception_handler(CandidateNotFound, candidate_not_found_exception)

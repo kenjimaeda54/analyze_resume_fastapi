@@ -7,7 +7,7 @@ from app.domain.entities.candidate import Candidate
 class CandidateGatewayInterface(ABC):
 
     @abstractmethod
-    def create_candidate(self, candidate: Candidate):
+    def create_candidate(self, candidate: Candidate) -> Candidate:
         pass
 
     @abstractmethod

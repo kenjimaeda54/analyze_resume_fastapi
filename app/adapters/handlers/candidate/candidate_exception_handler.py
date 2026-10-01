@@ -3,20 +3,21 @@ from starlette.requests import Request
 
 from starlette import status
 
-from app.domain.exception.candidate.candidate__already_exists_exceptions import CandidateAlreadyExistsException
+from app.domain.exception.candidate.candidate_already_exists_exceptions import CandidateAlreadyExistsException
 from app.domain.exception.base import ErrorResponse
 from fastapi.responses import JSONResponse
 
 from app.domain.exception.candidate.candidate_conflict import CandidateConflictException
 from app.domain.exception.candidate.candidate_cpf_exception import CandidateCpfException
+from app.domain.exception.candidate.candidate_exception import CandidateException
 from app.domain.exception.candidate.candidate_not_found import CandidateNotFound
 
 
 async def candidate_already_exists_exception(request: Request, exception: Exception):
-    candidate_exception = cast(CandidateAlreadyExistsException, exception)
+    candidate_already_exception = cast(CandidateAlreadyExistsException, exception)
     error_response = ErrorResponse(
         http_status_code=status.HTTP_409_CONFLICT,
-        error_code=candidate_exception.error_code,
+        error_code=candidate_already_exception.error_code,
         message=str(exception)
     )
     return JSONResponse(
@@ -26,10 +27,22 @@ async def candidate_already_exists_exception(request: Request, exception: Except
 
 
 async def candidate_conflict(request: Request, exception: Exception):
-    candidate_exception = cast(CandidateConflictException, exception)
+    candidate_conflict_exception = cast(CandidateConflictException, exception)
     error_response = ErrorResponse(
         http_status_code=status.HTTP_409_CONFLICT,
-        error_code=candidate_exception.error_code,
+        error_code=candidate_conflict_exception.error_code,
+        message=str(exception)
+    )
+    return JSONResponse(
+        status_code=error_response.http_status_code,
+        content=error_response.model_dump(exclude_none=True)
+    )
+
+async def candidate_exception(request: Request, exception: Exception):
+    candidate_exception_general = cast(CandidateException, exception)
+    error_response = ErrorResponse(
+        http_status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        error_code=candidate_exception_general.error_code,
         message=str(exception)
     )
     return JSONResponse(
@@ -39,10 +52,10 @@ async def candidate_conflict(request: Request, exception: Exception):
 
 
 async def candidate_not_found_exception(request: Request, exception: Exception) -> JSONResponse:
-    candidate_exception = cast(CandidateNotFound, exception)
+    candidate_exception_not_found = cast(CandidateNotFound, exception)
     error_response = ErrorResponse(
         http_status_code=status.HTTP_404_NOT_FOUND,
-        error_code=candidate_exception.error_code,
+        error_code=candidate_exception_not_found.error_code,
         message=str(exception)
     )
     return JSONResponse(
@@ -51,10 +64,10 @@ async def candidate_not_found_exception(request: Request, exception: Exception) 
     )
 
 async def candidate_cpf_exception(request: Request, exception: Exception) -> JSONResponse:
-    candidate_exception = cast(CandidateCpfException, exception)
+    candidate_exception_cpf = cast(CandidateCpfException, exception)
     error_response = ErrorResponse(
         http_status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-        error_code=candidate_exception.error_code,
+        error_code=candidate_exception_cpf.error_code,
         message=str(exception)
     )
     return JSONResponse(
