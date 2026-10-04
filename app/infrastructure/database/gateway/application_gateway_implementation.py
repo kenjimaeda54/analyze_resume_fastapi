@@ -1,8 +1,8 @@
-from typing import Optional
+from typing import Optional, Sequence
 
 from sqlalchemy.exc import IntegrityError
 
-from sqlalchemy import select, Sequence
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.adapters.mapper.application_mapper import ApplicationMapper
@@ -18,7 +18,7 @@ class ApplicationGatewayImplementation(ApplicationGatewayInterface):
         self.db_session = db_session
 
     #não posso recuperar os candidatos que estão com as vagas deletadas
-    def get_application(self, vacancy_id: int,candidate_id: int) -> Sequence[Application]:
+    def get_application(self, vacancy_id: int,candidate_id: int) -> list[Application] | None:
         #O JOIN existe porque o campo que eu quero filtrar (deleted_at) só existe na tabela VacancyTable.
         # Então eu 'colo' temporariamente as informações de VacancyTable e ApplicationTable
         # (relacionando pela chave em comum vacancy_id = id),
@@ -33,7 +33,7 @@ class ApplicationGatewayImplementation(ApplicationGatewayInterface):
         if application_db is None:
             return None
 
-        return ApplicationMapper.to_domain_from_table(application_db)
+        return ApplicationMapper.to_domain_list_from_table(application_db)
 
     def create_application(self, application: Application) -> Application:
         #lembrando que para relações e index utilizamos o id não publi_id
@@ -50,16 +50,17 @@ class ApplicationGatewayImplementation(ApplicationGatewayInterface):
             self.db_session.commit()
             self.db_session.refresh(application_table)
 
-            return ApplicationMapper.to_table_from_domain(application_table)
+            return ApplicationMapper.to_domain_from_table(application_table)
 
         except IntegrityError as e:
             self.db_session.rollback()
-            raise ApplicationAlreadyExistsException()
+            if "uq_candidate_vacancy" in str(e.orig):
+                raise ApplicationAlreadyExistsException()
+            raise
 
-
-        except Exception as e:
+        except Exception:
             self.db_session.rollback()
-            raise  ApplicationAlreadyExistsException()
+            raise
 
     def find_by_candidate_and_vacancy(self, candidate_id: int, vacancy_id: int) -> Optional[Application]:
         statement = (select(ApplicationTable)
@@ -70,4 +71,4 @@ class ApplicationGatewayImplementation(ApplicationGatewayInterface):
         if application_db is None:
             return None
 
-        return ApplicationMapper.to_table_from_domain(application_db)
+        return ApplicationMapper.to_domain_from_table(application_db)

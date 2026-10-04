@@ -1,6 +1,4 @@
-from typing import List
-
-from sqlalchemy import Sequence
+from typing import List, Sequence
 
 from app.domain.entities.application import Application
 from app.domain.entities.vacancy import Vacancy
@@ -10,21 +8,21 @@ from app.infrastructure.database.models.application_table import ApplicationTabl
 class ApplicationMapper:
 
     @staticmethod
-    def to_domain_from_table(applications: Sequence[ApplicationTable]) -> List[Application]:
+    def to_domain_list_from_table(applications: Sequence[ApplicationTable]) -> List[Application]:
         return [
             Application(
                 candidate_id=application.candidate_id,
                 vacancy_id=application.vacancy_id,
                 score=application.score,
                 status=application.status,
-                public_id=application.public_id,
+                public_id=str(application.public_id),
                 resume_url=application.resume_url,
             )
             for application in applications
         ]
 
     @staticmethod
-    def  to_table_from_domain(application_table: ApplicationTable) -> Application:
+    def to_domain_from_table(application_table: ApplicationTable) -> Application:
          return Application(
              candidate_id=application_table.candidate_id,
              vacancy_id=application_table.vacancy_id,

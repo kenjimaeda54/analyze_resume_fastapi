@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from app.application.ports.application_gateway import ApplicationGatewayInterface
 from app.application.ports.candidate_gateway import CandidateGatewayInterface
 from app.application.ports.storage_r2_gateway import StorageR2GatewayInterface
@@ -24,6 +26,12 @@ class ApplyToVacancyUseCase:
         self.vacancy_gateway = vacancy_gateway
         self.storager2 = storager2
 
+    @staticmethod
+    def _require_candidate_id(candidate: Candidate) -> int:
+        if candidate.id is None:
+            raise CandidateException(field=candidate.cpf)
+        return candidate.id
+
     def execute(
             self,
             candidate: Candidate,
@@ -39,10 +47,8 @@ class ApplyToVacancyUseCase:
         candidate_intern = self.candidate_gateway.get_candidate(cpf=candidate.cpf, email=candidate.email)
         vacancy = self.vacancy_gateway.get_by_vacancy_public_id(vacancy_public_id)
 
-        if vacancy is None:
+        if vacancy is None or vacancy.id is None:
             raise VacancyNotFound(vacancy_public_id)
-
-        assert vacancy.id is not None, "Vacancy should have an ID after fetch"
 
         if candidate_intern is not None and (
                 candidate_intern.cpf != candidate.cpf or candidate_intern.email != candidate.email
@@ -50,15 +56,14 @@ class ApplyToVacancyUseCase:
             raise CandidateConflictException()
 
         if candidate_intern is not None:
-            assert candidate_intern.id is not None, "Candidate should have an ID"
             existing_application = self.application_gateway.find_by_candidate_and_vacancy(
-                candidate_id=candidate_intern.id,
+                candidate_id=self._require_candidate_id(candidate_intern),
                 vacancy_id=vacancy.id,
             )
             if existing_application is not None:
                 raise ApplicationAlreadyExistsException()
 
-        file_path = f"resumes/{candidate.cpf}_{vacancy_public_id}.{extension}"
+        file_path = f"resumes/{candidate.cpf}_{vacancy_public_id}_{uuid4().hex}.{extension}"
         resume_url = self.storager2.upload_file(file_content=resume_bytes, file_path=file_path)
 
         try:
@@ -71,10 +76,8 @@ class ApplyToVacancyUseCase:
                     resume_url=resume_url,
                 )
 
-            assert candidate_intern.id is not None, "Candidate should have an ID after get/create"
-
             application = Application(
-                candidate_id=candidate_intern.id,
+                candidate_id=self._require_candidate_id(candidate_intern),
                 vacancy_id=vacancy.id,
                 resume_url=resume_url,
             )

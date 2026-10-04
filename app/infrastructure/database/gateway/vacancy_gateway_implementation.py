@@ -25,7 +25,10 @@ class VacancyGatewayImplementation(VacancyGatewayInterface):
 
     def get_by_vacancy_public_id(self,public_id:  str ) -> Optional[Vacancy]:
         try:
-            statement = select(VacancyTable).where(VacancyTable.public_id == public_id and VacancyTable.delete_at.is_(None))
+            statement = select(VacancyTable).where(
+                VacancyTable.public_id == public_id,
+                VacancyTable.delete_at.is_(None),
+            )
 
             return self._find_vacancy(statement)
 
@@ -34,7 +37,10 @@ class VacancyGatewayImplementation(VacancyGatewayInterface):
 
     def get_vacancy(self, vacancy_id: int) -> Optional[Vacancy]:
         try:
-            statement = select(VacancyTable).where(VacancyTable.id == vacancy_id)
+            statement = select(VacancyTable).where(
+                VacancyTable.id == vacancy_id,
+                VacancyTable.delete_at.is_(None),
+            )
 
             return self._find_vacancy(statement)
 

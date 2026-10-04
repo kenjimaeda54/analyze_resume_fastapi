@@ -10,10 +10,10 @@ class VacancyGatewayInterface(ABC):
         pass
 
     @abstractmethod
-    def get_vacancy(self,vacancy_id: int ) -> Vacancy:
+    def get_vacancy(self,vacancy_id: int ) -> Vacancy | None:
         pass
 
     @abstractmethod
-    def get_by_vacancy_public_id(self,public_id:  str ) -> Vacancy:
+    def get_by_vacancy_public_id(self,public_id:  str ) -> Vacancy | None:
         pass
 

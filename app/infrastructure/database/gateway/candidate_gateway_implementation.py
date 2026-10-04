@@ -10,6 +10,7 @@ from app.adapters.mapper.candidate_mapper import CandidateMapper
 from app.application.ports.candidate_gateway import CandidateGatewayInterface
 from app.domain.entities.candidate import Candidate
 from app.domain.exception.candidate.candidate_conflict import CandidateConflictException
+from app.domain.exception.candidate.candidate_exception import CandidateException
 from app.domain.exception.candidate.candidate_not_found import CandidateNotFound
 from app.infrastructure.database.exceptions.candidate_exception_mapper import map_candidate_integrity_error
 from app.infrastructure.database.models.candidate_table import CandidateTable
@@ -36,9 +37,9 @@ class CandidateGatewayImplementation(CandidateGatewayInterface):
             raise  map_candidate_integrity_error(
                 error=e,
             )
-        except Exception as e:
+        except Exception:
             self.db.rollback()
-            raise e
+            raise CandidateException(field=candidate.cpf)
 
     def get_candidate(self, cpf: str,email: str) -> Optional[Candidate]:
         try:
@@ -46,9 +47,8 @@ class CandidateGatewayImplementation(CandidateGatewayInterface):
                 or_(
                     CandidateTable.cpf == cpf,
                     CandidateTable.email == email,
-                )
-                and
-                CandidateTable.deleted_at.is_(None)
+                ),
+                CandidateTable.deleted_at.is_(None),
             )
             db_candidate: Optional[CandidateTable] = self.db.execute(statement).scalar_one_or_none()
 
@@ -77,7 +77,7 @@ class CandidateGatewayImplementation(CandidateGatewayInterface):
 
 
 
-    def update_resume_url(self,resume_url: str,candidate_cpf: str):
+    def update_resume_url(self,resume_url: str,candidate_cpf: str) -> Candidate:
         try:
             statement = select(CandidateTable).where(CandidateTable.cpf == candidate_cpf)
             db_candidate: Optional[CandidateTable] = self.db.execute(statement).scalar_one_or_none()
@@ -89,5 +89,10 @@ class CandidateGatewayImplementation(CandidateGatewayInterface):
             self.db.commit()
             self.db.refresh(db_candidate)
 
-        except Exception as e:
-            raise e
+            return CandidateMapper.to_domain_from_table(db_candidate)
+
+        except CandidateNotFound:
+            raise
+        except Exception:
+            self.db.rollback()
+            raise CandidateException(field=candidate_cpf)

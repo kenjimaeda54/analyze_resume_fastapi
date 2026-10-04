@@ -1,3 +1,6 @@
+from collections.abc import Mapping
+from typing import Any
+
 from app.domain.exception.base import FieldErrors
 
 
@@ -14,7 +17,7 @@ FIELD_MESSAGES: dict = {
 }
 
 
-def build_field_error(error: dict) -> FieldErrors:
+def build_field_error(error: Mapping[str, Any]) -> FieldErrors:
     #aqui vai ser uma tupla exemplo ('endereco', 'cep') ou ('cpf',) e vai ser transformado em uma string endereco.cep ou cpf
     field = ".".join(str(x) for x in error["loc"])
     field_msgs = FIELD_MESSAGES.get(field, {})

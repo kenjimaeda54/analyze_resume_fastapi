@@ -7,7 +7,7 @@ from app.domain.entities.application import Application
 class ApplicationGatewayInterface(ABC):
 
     @abstractmethod
-    def get_application(self,vacancy_id: int,candidate_id: int) -> Application:
+    def get_application(self,vacancy_id: int,candidate_id: int) -> list[Application] | None:
         pass
 
     @abstractmethod

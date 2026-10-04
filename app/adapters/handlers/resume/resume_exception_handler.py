@@ -1,7 +1,7 @@
 from typing import cast
-from urllib.request import Request
 
 from starlette import status
+from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 from app.domain.exception.base import ErrorResponse
