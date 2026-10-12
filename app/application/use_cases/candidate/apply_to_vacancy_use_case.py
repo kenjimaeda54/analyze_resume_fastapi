@@ -2,14 +2,15 @@ from uuid import uuid4
 
 from app.application.ports.application_gateway import ApplicationGatewayInterface
 from app.application.ports.candidate_gateway import CandidateGatewayInterface
+from app.application.ports.notification_gateway import NotificationGatewayInterface
 from app.application.ports.storage_r2_gateway import StorageR2GatewayInterface
 from app.application.ports.vacancy_gateway import VacancyGatewayInterface
 from app.domain.exception.application.application_already_exists_exception import ApplicationAlreadyExistsException
 from app.domain.exception.candidate.candidate_conflict import CandidateConflictException
 from app.domain.exception.candidate.candidate_cpf_exception import CandidateCpfException
 from app.domain.exception.candidate.candidate_exception import CandidateException
-from app.infrastructure.storage.validators.candidate.validate_cpf import validate_cpf
-from app.infrastructure.storage.validators.candidate.validate_resume_extension import validate_resume_extension
+from app.domain.validators.validate_cpf import validate_cpf
+from app.infrastructure.storage.validators.validate_resume_extension import validate_resume_extension
 from app.domain.entities.application import Application
 from app.domain.entities.candidate import Candidate
 from app.domain.exception.vacancy.vancacy_not_found import VacancyNotFound
@@ -20,11 +21,13 @@ class ApplyToVacancyUseCase:
                  application_gateway: ApplicationGatewayInterface,
                  vacancy_gateway: VacancyGatewayInterface,
                  storager2: StorageR2GatewayInterface,
+                 notification_gateway: NotificationGatewayInterface,
                  ):
         self.candidate_gateway = candidate_gateway
         self.application_gateway = application_gateway
         self.vacancy_gateway = vacancy_gateway
         self.storager2 = storager2
+        self.notification_gateway = notification_gateway
 
     @staticmethod
     def _require_candidate_id(candidate: Candidate) -> int:
@@ -82,7 +85,15 @@ class ApplyToVacancyUseCase:
                 resume_url=resume_url,
             )
 
-            return self.application_gateway.create_application(application=application)
+            application_intern =  self.application_gateway.create_application(application=application)
+
+            self.notification_gateway.notify_new_application(
+                candidate_email=candidate_intern.email,
+                candidate_name=candidate_intern.name,
+                vacancy_title=vacancy.title,
+                resume_path=resume_url
+            )
+            return application_intern
 
         except Exception:
             self.storager2.delete_file(file_path=file_path)

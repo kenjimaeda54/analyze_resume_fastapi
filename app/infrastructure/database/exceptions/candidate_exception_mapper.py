@@ -1,6 +1,7 @@
 from sqlalchemy.exc import IntegrityError
 
-from app.domain.entities.candidate import Candidate
+
+
 from app.domain.exception.candidate.candidate_already_exists_exceptions import CandidateAlreadyExistsException
 
 

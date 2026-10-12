@@ -17,6 +17,7 @@ from app.adapters.messages.field_messages import build_field_error
 from fastapi.responses import JSONResponse
 
 from app.infrastructure.database.gateway.vacancy_gateway_implementation import VacancyGatewayImplementation
+from app.infrastructure.notification.queue_config import depends_notification_gateway
 from app.infrastructure.storage.storage import depends_storage
 
 router = APIRouter(
@@ -24,14 +25,16 @@ router = APIRouter(
     tags=["Candidate"]
 )
 
-def apply_candidate_use_case_gateway(db: depends_db,storage: depends_storage):
+def apply_candidate_use_case_gateway(db: depends_db,storage: depends_storage, notification: depends_notification_gateway):
     candidate_gateway = CandidateGatewayImplementation(db)
     application_gateway = ApplicationGatewayImplementation(db)
     vacancy_gateway = VacancyGatewayImplementation(db)
+
     return ApplyToVacancyUseCase(candidate_gateway=candidate_gateway,
                                  application_gateway=application_gateway,
                                  vacancy_gateway=vacancy_gateway,
                                  storager2= storage,
+                                 notification_gateway=notification
                                  )
 
 #estamos enviando via form porque não aceita  no fastapi misturar json com File

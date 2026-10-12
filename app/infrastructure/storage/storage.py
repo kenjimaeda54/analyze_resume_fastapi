@@ -3,7 +3,7 @@ import os
 from fastapi import Depends
 from typing import Annotated
 
-from app.infrastructure.database.gateway.storage_r2_gateway_implementation import StorageR2GatewayImplementation
+from app.infrastructure.storage.gateway.storage_r2_gateway_implementation import StorageR2GatewayImplementation
 from dotenv import load_dotenv
 
 
