@@ -23,7 +23,7 @@ class CandidateGatewayImplementation(CandidateGatewayInterface):
     def create_candidate(self, candidate: Candidate) -> Candidate:
         candidate_table = CandidateTable(
             cpf=candidate.cpf,
-            resume_url=candidate.resume_url,
+            path_bucket=candidate.path_bucket,
             name=candidate.name,
             email=candidate.email,
         )
@@ -77,7 +77,7 @@ class CandidateGatewayImplementation(CandidateGatewayInterface):
 
 
 
-    def update_resume_url(self,resume_url: str,candidate_cpf: str) -> Candidate:
+    def update_path_bucket(self, path_bucket: str, candidate_cpf: str) -> Candidate:
         try:
             statement = select(CandidateTable).where(CandidateTable.cpf == candidate_cpf)
             db_candidate: Optional[CandidateTable] = self.db.execute(statement).scalar_one_or_none()
@@ -85,7 +85,7 @@ class CandidateGatewayImplementation(CandidateGatewayInterface):
             if db_candidate is None:
                 raise CandidateNotFound(cpf=candidate_cpf)
 
-            db_candidate.resume_url = resume_url
+            db_candidate.path_bucket = path_bucket
             self.db.commit()
             self.db.refresh(db_candidate)
 

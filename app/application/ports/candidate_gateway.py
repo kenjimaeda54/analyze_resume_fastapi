@@ -15,5 +15,5 @@ class CandidateGatewayInterface(ABC):
         pass
 
     @abstractmethod
-    def update_resume_url(self,resume_url: str,candidate_cpf: str) -> Candidate:
+    def update_path_bucket(self, path_bucket: str, candidate_cpf: str) -> Candidate:
         pass

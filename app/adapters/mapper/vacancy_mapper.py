@@ -9,5 +9,6 @@ class VacancyMapper:
             id=vacancy_table.id,
             title=vacancy_table.title,
             description=vacancy_table.description,
-            company=vacancy_table.company
+            company=vacancy_table.company,
+            list_word_keys=vacancy_table.list_key_words
         )

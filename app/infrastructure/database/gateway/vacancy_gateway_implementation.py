@@ -54,6 +54,7 @@ class VacancyGatewayImplementation(VacancyGatewayInterface):
                 title=vacancy.title,
                 description=vacancy.description,
                 company=vacancy.company,
+                list_key_words=vacancy.list_word_keys
             )
             self.db_session.add(vacancy_table)
             self.db_session.commit()

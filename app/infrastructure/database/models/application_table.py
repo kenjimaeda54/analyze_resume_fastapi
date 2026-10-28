@@ -20,7 +20,7 @@ class ApplicationTable(Base):
         nullable=False
     )
     candidate_id: Mapped[int] = mapped_column(ForeignKey("candidate.id"),nullable=False)
-    resume_url: Mapped[str] = mapped_column(String(255), nullable=False)
+    path_bucket: Mapped[str] = mapped_column(String(255), nullable=False)
     vacancy_id: Mapped[int] = mapped_column(ForeignKey("vacancy.id"),nullable=False)
     score: Mapped[float | None] = mapped_column(Float,nullable=True)
     status: Mapped[CandidateStatus] = mapped_column(SAEnum(CandidateStatus),nullable=False,default=CandidateStatus.PENDING)

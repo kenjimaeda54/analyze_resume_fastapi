@@ -973,3 +973,119 @@ Pronto. O controller, o use case e o domínio continuam funcionando sem nenhuma 
 - As run configurations são versionadas na pasta `run/` (`*.run.xml`). Após clonar o projeto, ajuste apenas o interpretador da configuração `Start Redis` (ver seção PyCharm).
 - **Para rodar o projeto completo, use sempre a configuração `Full Project`** no PyCharm — ela sobe Worker + API juntos (e o Redis via Before Launch).
 - **Nunca** importe `infrastructure/` ou `adapters/` dentro de `domain/` ou `application/use_cases/`. Se precisar de algo novo, crie uma port.
+
+---
+
+## Migrations: quando o `alembic upgrade head` falha
+
+### Problema 1: o autogenerate não detecta renomeação
+
+O Alembic não consegue saber se você **renomeou** uma coluna. Quando você troca `resume_url` por `path_bucket` no model, ele gera:
+
+```python
+op.add_column('application', sa.Column('path_bucket', ...))
+op.drop_column('application', 'resume_url')   # apaga os dados!
+```
+
+Isso cria a coluna nova vazia e apaga a antiga, perdendo os dados. O correto é `alter_column` com `new_column_name`:
+
+```python
+op.alter_column('application', 'resume_url', new_column_name='path_bucket')
+op.alter_column('candidate', 'resume_url', new_column_name='path_bucket')
+```
+
+**Sempre revise o arquivo gerado em `alembic/versions/` antes de rodar o `upgrade`.** Se aparecer `add_column` + `drop_column` para a mesma coisa, troque pelo `alter_column` acima.
+
+### Problema 2: `NOT NULL` em tabela que já tem dados
+
+Ao adicionar uma coluna `nullable=False` numa tabela com registros existentes, o PostgreSQL recusa porque as linhas antigas ficariam com `NULL` (ex.: `resume_url`). A solução é em 3 passos dentro da migration:
+
+```python
+def upgrade() -> None:
+    # 1) cria a coluna aceitando NULL
+    op.add_column('application', sa.Column('resume_url', sa.String(length=255), nullable=True))
+    # 2) preenche os registros antigos
+    op.execute("UPDATE application SET resume_url = '' WHERE resume_url IS NULL")
+    # 3) agora pode travar como NOT NULL
+    op.alter_column('application', 'resume_url', nullable=False)
+```
+
+Alternativa: usar `server_default=''` no `add_column` (o banco preenche as linhas antigas automaticamente).
+
+### Fluxo recomendado ao criar/editar uma migration
+
+```bash
+# 1. Gerar a migration
+uv run alembic revision --autogenerate -m "descricao"
+
+# 2. Abrir alembic/versions/<id>_descricao.py e revisar:
+#    - renomeações: trocar add_column + drop_column por alter_column(new_column_name=...)
+#    - colunas NOT NULL em tabela com dados: usar o padrão de 3 passos acima
+
+# 3. Conferir o estado antes de aplicar
+uv run alembic current    # revisão atual do banco
+uv run alembic heads      # última revisão do código
+
+# 4. Aplicar
+uv run alembic upgrade head
+```
+
+### Se o upgrade falhar no meio
+
+- No PostgreSQL, as migrations rodam em transação: se der erro, o banco volta ao estado anterior. Rode `uv run alembic current` para confirmar.
+- Corrija o arquivo em `alembic/versions/` e rode `uv run alembic upgrade head` de novo.
+- Só use `uv run alembic stamp <revisao>` se você tiver certeza de que o schema real já está como aquela revisão (ex.: você aplicou a mudança manualmente). Caso contrário, você marca uma revisão errada e o histórico diverge do banco.
+- Para desfazer a última migration: `uv run alembic downgrade -1` (confira antes o `downgrade()` do arquivo).
+
+> **Atenção:** em banco com dados reais, faça backup antes de rodar migrations que renomeiam ou removem colunas (`pg_dump analyzes_resume_db > backup.sql`).
+
+### Exemplo real: migration corrigida manualmente
+
+Arquivo `alembic/versions/8061d605b9f8_add_words_key_to_vacancy.py` (gerado com `-m "add words_key to vacancy"` e ajustado à mão para renomear as colunas em vez de apagar/criar):
+
+```python
+"""add words_key to vacancy
+
+Revision ID: 8061d605b9f8
+Revises: 1731ec9449df
+Create Date: 2026-10-22 08:50:02.556459
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+# revision identifiers, used by Alembic.
+revision: str = '8061d605b9f8'
+down_revision: Union[str, Sequence[str], None] = '1731ec9449df'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    op.alter_column('application', 'resume_url', new_column_name='path_bucket')
+    op.alter_column('candidate', 'resume_url', new_column_name='path_bucket')
+    op.add_column(
+        'vacancy',
+        sa.Column('words_key', postgresql.ARRAY(sa.String()), server_default=sa.text("'{}'"), nullable=False),
+    )
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    op.drop_column('vacancy', 'words_key')
+    op.alter_column('candidate', 'path_bucket', new_column_name='resume_url')
+    op.alter_column('application', 'path_bucket', new_column_name='resume_url')
+```
+
+**O que verificar nesse arquivo:**
+
+- `revision` (`'8061d605b9f8'`) é o **ID da migration**. É um hash gerado pelo Alembic, **não** o texto da mensagem. O texto `add words_key to vacancy` fica só no nome do arquivo e no docstring. Não troque o ID por esse texto.
+- `down_revision` (`'1731ec9449df'`) precisa ser o ID da migration anterior na cadeia. Se estiver errado, o Alembic não consegue montar o histórico.
+- Para confirmar a cadeia: `uv run alembic heads` deve mostrar `8061d605b9f8 (head)` e `uv run alembic history` deve mostrar `1731ec9449df -> 8061d605b9f8`.
+- O `revision` do arquivo deve bater com o prefixo do nome do arquivo (`8061d605b9f8_...py`).
+
+Se você criar uma migration nova, não edite o ID à mão. Deixe o Alembic gerar, e só ajuste o `upgrade()` e o `downgrade()`.

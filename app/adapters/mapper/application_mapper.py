@@ -16,7 +16,7 @@ class ApplicationMapper:
                 score=application.score,
                 status=application.status,
                 public_id=str(application.public_id),
-                resume_url=application.resume_url,
+                path_bucket=application.path_bucket,
             )
             for application in applications
         ]
@@ -29,5 +29,5 @@ class ApplicationMapper:
              score=application_table.score,
              status=application_table.status,
              public_id=str(application_table.public_id),
-             resume_url=application_table.resume_url,
+             path_bucket=application_table.path_bucket,
          )

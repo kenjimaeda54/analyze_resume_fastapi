@@ -9,5 +9,5 @@ class Application(BaseModel):
      vacancy_id: int
      score: float | None = None
      status: CandidateStatus = CandidateStatus.PENDING
-     resume_url: str
+     path_bucket: str
 

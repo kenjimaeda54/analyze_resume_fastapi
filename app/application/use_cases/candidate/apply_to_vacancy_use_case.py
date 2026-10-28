@@ -66,23 +66,25 @@ class ApplyToVacancyUseCase:
             if existing_application is not None:
                 raise ApplicationAlreadyExistsException()
 
-        file_path = f"resumes/{candidate.cpf}_{vacancy_public_id}_{uuid4().hex}.{extension}"
-        resume_url = self.storager2.upload_file(file_content=resume_bytes, file_path=file_path)
+        file_path = f"{candidate.cpf}_{vacancy_public_id}_{uuid4().hex}.{extension}"
+        full_file_path = f"resumes/{file_path}"
+        self.storager2.upload_file(file_content=resume_bytes, file_path=full_file_path)
+        url_public_resume = self.storager2.get_download_url(file_path=full_file_path)
 
         try:
             if candidate_intern is None:
-                candidate_request = candidate.model_copy(update={"resume_url": resume_url})
+                candidate_request = candidate.model_copy(update={"path_bucket": file_path})
                 candidate_intern = self.candidate_gateway.create_candidate(candidate=candidate_request)
             else:
-                candidate_intern = self.candidate_gateway.update_resume_url(
+                candidate_intern = self.candidate_gateway.update_path_bucket(
                     candidate_cpf=candidate_intern.cpf,
-                    resume_url=resume_url,
+                    path_bucket=file_path,
                 )
 
             application = Application(
                 candidate_id=self._require_candidate_id(candidate_intern),
                 vacancy_id=vacancy.id,
-                resume_url=resume_url,
+                path_bucket=file_path,
             )
 
             application_intern =  self.application_gateway.create_application(application=application)
@@ -91,7 +93,8 @@ class ApplyToVacancyUseCase:
                 candidate_email=candidate_intern.email,
                 candidate_name=candidate_intern.name,
                 vacancy_title=vacancy.title,
-                resume_path=resume_url
+                url_public_resume=url_public_resume,
+                list_word_keys= vacancy.list_word_keys
             )
             return application_intern
 

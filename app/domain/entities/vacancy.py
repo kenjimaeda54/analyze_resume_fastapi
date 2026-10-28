@@ -7,4 +7,5 @@ class Vacancy(BaseModel):
       title: str
       description: str
       company: str
+      list_word_keys: list[str] = []
 

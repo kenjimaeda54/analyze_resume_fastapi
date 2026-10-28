@@ -1,4 +1,5 @@
 import uuid
+from sqlalchemy.dialects.postgresql import ARRAY
 from datetime import datetime
 
 from sqlalchemy import Integer, String, DateTime, Uuid, text
@@ -19,4 +20,5 @@ class VacancyTable(Base):
     title: Mapped[str] = mapped_column(String, nullable=False)
     description: Mapped[str] = mapped_column(String, nullable=False)
     company: Mapped[str] = mapped_column(String, nullable=False)
+    list_key_words: Mapped[list[str]] = mapped_column(ARRAY(String), nullable=False, server_default=text("'{}'"))
     delete_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True,default=None)

@@ -17,7 +17,8 @@ def notify_n8n_task(
     candidate_email: str,
     candidate_name: str,
     vacancy_title: str,
-    resume_path: str
+    url_public_resume: str,
+    list_word_keys: list[str]
 ):
 
     assert jwt_secret is not None, "JWT  is not set"
@@ -34,7 +35,8 @@ def notify_n8n_task(
             "candidate_email": candidate_email,
             "candidate_name": candidate_name,
             "vacancy_title": vacancy_title,
-            "resume_path": resume_path
+            "url_public_resume": url_public_resume,
+            "list_word_keys": list_word_keys
         },
         headers={"Authorization": f"Bearer {token}"},
         timeout=10.0

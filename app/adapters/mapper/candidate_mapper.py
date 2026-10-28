@@ -10,7 +10,7 @@ class CandidateMapper:
         return Candidate(
             cpf=dto.cpf,
             name=dto.name,
-            resume_url="",
+            path_bucket="",
             email = dto.email,
         )
 
@@ -21,6 +21,6 @@ class CandidateMapper:
             public_id=str(table.public_id),
             cpf=table.cpf,
             name=table.name,
-            resume_url=table.resume_url,
+            path_bucket=table.path_bucket,
             email=table.email,
         )
