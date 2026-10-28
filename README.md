@@ -1,6 +1,7 @@
 # analyzes-resume
 
-API de análise e gestão de candidaturas a vagas. O candidato envia seu currículo (PDF/DOC/DOCX) para uma vaga, o arquivo é armazenado no Cloudflare R2 e uma notificação assíncrona é enviada ao n8n via fila Redis (RQ).
+API de análise e gestão de candidaturas a vagas. O candidato envia seu currículo (PDF/DOC/DOCX) para uma vaga, o arquivo é armazenado no Cloudflare R2 e uma notificação assíncrona é enviada ao n8n via fila Redis (RQ)
+O agente no N8N utiliza as ferramentas para enviar candidatura para os recrutadores, apenas candidatos acima de 0.7 são enviados aos recrutadores (existem outras ferramentas que o agente utiliza para fins de auditoria).
 
 ## Stack
 
