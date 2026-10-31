@@ -14,6 +14,7 @@ class RQNotificationGatewayImplementation(
            candidate_email: str,
            candidate_name: str,
            vacancy_title:  str,
+            application_public_id: str,
            list_word_keys: list[str],
            url_public_resume: str) -> None:
           self.queue.enqueue(
@@ -22,6 +23,7 @@ class RQNotificationGatewayImplementation(
               candidate_name = candidate_name,
               vacancy_title = vacancy_title,
               list_word_keys = list_word_keys,
+              application_public_id = application_public_id,
               url_public_resume = url_public_resume,
               retry=Retry(max=3, interval=[10, 30, 60]) # aguarda 3 tentaivas primerio 10s, depois 30s, depois 60s
           )

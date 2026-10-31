@@ -9,19 +9,19 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-
-webhook_url = os.getenv("N8N_WEBHOOK_URL") or ""
-jwt_secret = os.getenv("N8N_JWT_SECRET")
-
 def notify_n8n_task(
     candidate_email: str,
     candidate_name: str,
     vacancy_title: str,
     url_public_resume: str,
+    application_public_id: str,
     list_word_keys: list[str]
 ):
+    webhook_url = os.getenv("N8N_WEBHOOK_URL")
+    jwt_secret = os.getenv("N8N_JWT_SECRET")
 
-    assert jwt_secret is not None, "JWT  is not set"
+    if not webhook_url or not jwt_secret:
+        raise RuntimeError("Missing N8N_WEBHOOK_URL and N8N_JWT_SECRET ")
 
     token = jwt.encode(
         {"sub": "analyzes-resume-api", "iat": int(time.time()), "exp": int(time.time()) + 60},
@@ -32,6 +32,7 @@ def notify_n8n_task(
     response = httpx.post(
         webhook_url,
         json={
+            "application_public_id": application_public_id,
             "candidate_email": candidate_email,
             "candidate_name": candidate_name,
             "vacancy_title": vacancy_title,

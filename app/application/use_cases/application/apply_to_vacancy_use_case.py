@@ -89,11 +89,14 @@ class ApplyToVacancyUseCase:
 
             application_intern =  self.application_gateway.create_application(application=application)
 
+            assert  application_intern.public_id is not None
+
             self.notification_gateway.notify_new_application(
                 candidate_email=candidate_intern.email,
                 candidate_name=candidate_intern.name,
                 vacancy_title=vacancy.title,
                 url_public_resume=url_public_resume,
+                application_public_id=application_intern.public_id,
                 list_word_keys= vacancy.list_word_keys
             )
             return application_intern

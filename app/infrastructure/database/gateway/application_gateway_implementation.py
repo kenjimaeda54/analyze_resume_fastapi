@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.adapters.mapper.application_mapper import ApplicationMapper
 from app.application.ports.application_gateway import ApplicationGatewayInterface
 from app.domain.entities.application import Application
+from app.domain.enum.candidate_status import CandidateStatus
 from app.domain.exception.application.application_already_exists_exception import ApplicationAlreadyExistsException
 from app.infrastructure.database.models.application_table import ApplicationTable
 from app.infrastructure.database.models.vacancy_table import VacancyTable
@@ -17,8 +18,32 @@ class ApplicationGatewayImplementation(ApplicationGatewayInterface):
     def __init__(self, db_session: Session):
         self.db_session = db_session
 
+
+    def update_score_application(self,score: float,public_id: str,status: CandidateStatus) -> None:
+        application_db = self._find_table_by_public_id(public_id)
+
+        if application_db is None:
+            pass
+
+        #para atualizar basta usar o refresh e aplicar commit antes
+        application_db.score = score
+        application_db.status = status
+        self.db_session.commit()
+        self.db_session.refresh(application_db)
+
+
+
+    def get_application_by_public_id(self,public_id: str) ->  Optional[Application]:
+        application_db = self._find_table_by_public_id(public_id)
+
+        if application_db is None:
+              return None
+
+        return ApplicationMapper.to_domain_from_table(application_db)
+
+
     #não posso recuperar os candidatos que estão com as vagas deletadas
-    def get_application(self, vacancy_id: int,candidate_id: int) -> list[Application] | None:
+    def get_many_application(self, vacancy_id: int, candidate_id: int) -> list[Application] | None:
         #O JOIN existe porque o campo que eu quero filtrar (deleted_at) só existe na tabela VacancyTable.
         # Então eu 'colo' temporariamente as informações de VacancyTable e ApplicationTable
         # (relacionando pela chave em comum vacancy_id = id),
@@ -61,6 +86,10 @@ class ApplicationGatewayImplementation(ApplicationGatewayInterface):
         except Exception:
             self.db_session.rollback()
             raise
+
+    def _find_table_by_public_id(self, public_id: str) -> Optional[ApplicationTable]:
+        statement = select(ApplicationTable).where(ApplicationTable.public_id == public_id)
+        return self.db_session.execute(statement).scalar_one_or_none()
 
     def find_by_candidate_and_vacancy(self, candidate_id: int, vacancy_id: int) -> Optional[Application]:
         statement = (select(ApplicationTable)

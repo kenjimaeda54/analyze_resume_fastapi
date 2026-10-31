@@ -8,7 +8,7 @@ from pydantic import ValidationError
 from app.adapters.mapper.candidate_mapper import CandidateMapper
 from app.application.dto.request.create_candidate import CreateCandidate
 from app.application.dto.response.application_response_dto import ApplicationResponseDTO
-from app.application.use_cases.candidate.apply_to_vacancy_use_case import ApplyToVacancyUseCase
+from app.application.use_cases.application.apply_to_vacancy_use_case import ApplyToVacancyUseCase
 from app.infrastructure.database.gateway.application_gateway_implementation import ApplicationGatewayImplementation
 from app.infrastructure.database.gateway.candidate_gateway_implementation import CandidateGatewayImplementation
 from app.infrastructure.database.database import depends_db
