@@ -15,6 +15,7 @@ O agente no N8N utiliza as ferramentas para enviar candidatura para os recrutado
 | Notificação | Webhook n8n (via fila RQ) |
 | Gerenciamento de deps | [uv](https://docs.astral.sh/uv/) |
 | Validações | Pydantic, validate-docbr (CPF) |
+| Segurança | PyJWT (HS256, webhook n8n) + token interno (callback do n8n) |
 
 ---
 
@@ -122,6 +123,85 @@ HTTP POST /candidate/{vacancy_id}/apply
 HTTP 201 { public_id, status }
 ```
 
+### Segurança da comunicação com o n8n (JWT)
+
+A integração com o n8n é protegida nos dois sentidos:
+
+**1) API → n8n (webhook de nova candidatura):** a task do worker assina um JWT antes de chamar o webhook (`app/infrastructure/notification/tasks/notify_n8n_task.py`):
+
+```python
+token = jwt.encode(
+    {"sub": "analyzes-resume-api", "iat": int(time.time()), "exp": int(time.time()) + 60},
+    jwt_secret,
+    algorithm="HS256",
+)
+```
+
+- Algoritmo **HS256**, secret lido de `N8N_JWT_SECRET`
+- Token vale por **60 segundos** (`exp`) — mesmo se vazar, expira rápido
+- O header vai como `Authorization: Bearer <token>`
+- Se o n8n rejeitar (401/403), o `raise_for_status()` faz o RQ aplicar o retry (10s, 30s, 60s)
+
+**2) n8n → API (callback de score):** o agente do n8n, após processar o currículo, chama `PATCH /application/{id}/score` enviando o token fixo de `N8N_CALLBACK_TOKEN_SECRET`. A verificação fica em `app/adapters/security/internal_auth.py`:
+
+```python
+def verify_internal_token(authorization: Annotated[str | None, Header()] = None) -> None:
+    expected = f"Bearer {os.getenv('N8N_CALLBACK_TOKEN_SECRET', '')}"
+    if not authorization or not secrets.compare_digest(authorization, expected):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unauthorized")
+```
+
+> O `secrets.compare_digest` compara todos os caracteres sempre, gastando o mesmo tempo independente de onde está a diferença — isso evita **ataques de timing** na comparação do token.
+
+O endpoint usa a dependência do FastAPI (`Depends(verify_internal_token)`), então qualquer rota interna pode reutilizar o mesmo guarda:
+
+```python
+@router.patch("/{application_id}/score", status_code=status.HTTP_204_NO_CONTENT)
+async def update_application_score(
+    ...,
+    _: Annotated[None, Depends(verify_internal_token)]
+):
+```
+
+**Como reproduzir esse padrão em outro projeto:**
+
+1. Emissor (quem chama): assine um JWT curto (`exp` < 1 min) com PyJWT e envie em `Authorization: Bearer`
+2. Receptor (quem responde): valide o header com `secrets.compare_digest` contra um secret do `.env`
+3. Cada lado com seu próprio secret no `.env` (`*_JWT_SECRET` para saída, `*_CALLBACK_TOKEN_SECRET` para entrada)
+
+**Gerando os secrets:** use o OpenSSL para criar chaves seguras de 256 bits:
+
+```bash
+openssl rand -hex 32
+```
+
+Rode uma vez para o `N8N_JWT_SECRET` e outra para o `N8N_CALLBACK_TOKEN_SECRET` (e configure o mesmo valor no lado do n8n). Nunca use senhas "de cabeça" — segredo fraco derruba toda a proteção do JWT.
+
+### Hack: expor o FastAPI local ao n8n com Cloudflare Tunnel
+
+Como a API roda em `localhost:8000`, o n8n (rodando na nuvem ou em outro lugar) **não consegue chamá-la de volta** — o callback de score falharia. Em vez de hospedar a API, o truque é criar um túnel público que aponta para a sua máquina:
+
+```bash
+cloudflared tunnel --url http://127.0.0.1:8000
+```
+
+O comando imprime uma URL pública do tipo `https://algo-aleatorio.trycloudflare.com`. Use essa URL no n8n no lugar de `localhost` — por exemplo, no nó HTTP Request que chama `PATCH /application/{id}/score`:
+
+```
+https://algo-aleatorio.trycloudflare.com/application/<public_id>/score
+```
+
+Por que isso é útil:
+
+- **Testes locais com serviços externos:** webhooks, n8n, Stripe, bots etc. conseguem "ver" sua API sem deploy
+- **Sem cadastro/configuração:** o quick tunnel do Cloudflare não exige conta nem token — basta o binário `cloudflared` instalado (`brew install cloudflared` no macOS)
+- **Serve como hospital temporário:** antes de hospedar de verdade, você valida todo o fluxo ponta a ponta; depois é só trocar a URL do túnel pela URL de produção
+- **HTTPS de graça:** a URL `trycloudflare.com` já vem com TLS, evitando problemas de mixed content nos clientes HTTP
+
+> **Atenção:** a URL do quick tunnel **muda a cada execução** do comando — se reiniciar o túnel, atualize a URL nos nós do n8n. E lembre-se de que sua API local fica publicamente acessível enquanto o túnel estiver aberto; por isso a proteção com token (`verify_internal_token`) importa mesmo em dev.
+
+**Como reproduzir em outro projeto:** rode `cloudflared tunnel --url http://127.0.0.1:<porta>`, copie a URL `trycloudflare.com` gerada e configure seus serviços externos (n8n, webhooks) para chamarem essa URL. Para um túnel fixo com domínio próprio, o Cloudflare oferece túneis nomeados (`cloudflared tunnel create <nome>`) — vale a pena quando a URL mudar começa a incomodar.
+
 ### Regra de dependência (o diagrama que resume tudo)
 
 ```
@@ -187,7 +267,15 @@ R2_ENDPOINT_URL=https://<account_id>.r2.cloudflarestorage.com
 REDIS_URL=redis://localhost:9000
 
 N8N_WEBHOOK_URL=https://seu-n8n.com/webhook/candidatura-recebida
+
+# Segredo usado para assinar o JWT enviado ao webhook do n8n (HS256)
+N8N_JWT_SECRET=um_seguro_para_assinar_o_jwt
+
+# Token que o n8n deve enviar no header Authorization ao chamar o endpoint de score
+N8N_CALLBACK_TOKEN_SECRET=um_token_secreto_do_callback
 ```
+
+> O `N8N_JWT_SECRET` precisa ser o mesmo configurado no nó de verificação do JWT dentro do workflow do n8n. O `N8N_CALLBACK_TOKEN_SECRET` precisa ser o mesmo que o workflow do n8n envia de volta no header `Authorization`.
 
 ### 3. Banco de dados — conexão passo a passo
 
@@ -622,15 +710,59 @@ Envia a candidatura de um candidato a uma vaga, com upload do currículo.
 | 409 | `CandidateConflictException` | Conflito de CPF/e-mail com outro candidato |
 | 415/400 | `ResumeInvalidExtensionException` | Extensão de currículo inválida |
 
+### `PATCH /application/{application_id}/score`
+
+Endpoint interno chamado pelo n8n para registrar o score da candidatura. Requer `Authorization: Bearer <N8N_CALLBACK_TOKEN_SECRET>` (ver [Segurança da comunicação com o n8n](#segurança-da-comunicação-com-o-n8n-jwt)).
+
+**Corpo (JSON):**
+
+```json
+{ "score": 0.85 }
+```
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `score` | float | ✅ | Nota de 0 a 100 (validada por `Field(ge=0, le=100)`) |
+
+O status da candidatura é derivado do score pela regra `status_from_score` (`app/domain/rules/status_from_score.py`): `score >= 0.7` → `APPROVED`, senão `REJECTED`.
+
+**Erros possíveis:**
+
+| Status | Exceção | Descrição |
+|---|---|---|
+| 401 | — | Token do callback ausente ou inválido |
+| 404 | `ApplicationNotFound` | Candidatura não encontrada |
+| 422 | `ValidationError` | Score fora do intervalo 0–100 |
+
 ### Fluxo da candidatura
 
 1. Valida a extensão/magic bytes do currículo (PDF/DOC/DOCX)
 2. Valida o CPF
 3. Consulta candidato e vaga no banco
-4. Faz upload do currículo no Cloudflare R2
+4. Faz upload do currículo no Cloudflare R2 e gera uma URL de download pré-assinada (`get_download_url`, expira em 30 min)
 5. Cria ou atualiza o candidato e registra a candidatura
-6. Enfileira notificação assíncrona (RQ) para o webhook do n8n — com retry (3 tentativas: 10s, 30s, 60s)
+6. Enfileira notificação assíncrona (RQ) para o webhook do n8n — com retry (3 tentativas: 10s, 30s, 60s) — enviando o payload assinado com **JWT** (ver [Segurança da comunicação com o n8n](#segurança-da-comunicação-com-o-n8n-jwt))
 7. Retorna o `public_id` e o `status` da candidatura
+
+### Fluxo de retorno do n8n (score)
+
+Depois que o agente do n8n analisa o currículo contra as `list_word_keys` da vaga, ele chama de volta:
+
+```
+PATCH /application/{application_public_id}/score   (Authorization: Bearer <N8N_CALLBACK_TOKEN_SECRET>)
+        │
+        ▼
+UpdateScoreUseCase → busca a candidatura pelo public_id
+        │
+        ▼
+status_from_score(score)  →  score >= 0.7 ? APPROVED : REJECTED   (domain/rules/status_from_score.py)
+        │
+        ▼
+ApplicationGateway.update_score_application()  → atualiza score + status no PostgreSQL
+        │
+        ▼
+HTTP 204 (ou 404 se a candidatura não existir / 401 se o token for inválido)
+```
 
 ---
 
@@ -934,7 +1066,8 @@ Pronto. O controller, o use case e o domínio continuam funcionando sem nenhuma 
 │   │   ├── controllers/              # Routers FastAPI
 │   │   ├── handlers/                 # Exception handlers globais
 │   │   ├── mapper/                   # Conversores DTO ↔ Domínio ↔ Tabela
-│   │   └── messages/                 # Mensagens de erro por campo
+│   │   ├── messages/                 # Mensagens de erro por campo
+│   │   └── security/                 # Guardas de autenticação (token interno do n8n)
 │   ├── application/                  # Casos de uso e contratos
 │   │   ├── dto/
 │   │   │   ├── request/
@@ -945,6 +1078,7 @@ Pronto. O controller, o use case e o domínio continuam funcionando sem nenhuma 
 │   │   ├── entities/
 │   │   ├── enum/
 │   │   ├── exception/
+│   │   ├── rules/                    # Regras puras (ex: status_from_score)
 │   │   └── validators/
 │   ├── infrastructure/               # Implementações concretas
 │   │   ├── database/
@@ -952,8 +1086,8 @@ Pronto. O controller, o use case e o domínio continuam funcionando sem nenhuma 
 │   │   │   ├── gateway/              # Implementação das ports de persistência
 │   │   │   ├── models/               # Tabelas SQLAlchemy
 │   │   │   └── database.py           # Engine, Session, Base
-│   │   ├── notification/             # Redis + RQ + tasks
-│   │   └── storage/                  # Cloudflare R2 (boto3)
+│   │   ├── notification/             # Redis + RQ + tasks (webhook n8n assinado com JWT)
+│   │   └── storage/                  # Cloudflare R2 (boto3) + URL pré-assinada
 │   └── main.py                       # Entry point FastAPI
 ├── run/                              # Run configurations do PyCharm (todas juntas)
 │   ├── Full Project.run.xml          # Compound: Worker + main em paralelo
